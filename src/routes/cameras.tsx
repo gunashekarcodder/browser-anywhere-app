@@ -199,8 +199,12 @@ function CamerasRoute() {
               id="cam-url"
               value={form.source_url}
               onChange={(e) => setForm((f) => ({ ...f, source_url: e.target.value }))}
-              placeholder="https://…/live.mp4"
+              placeholder="https://cam.city.gov/hls/pole4.m3u8"
             />
+            <p className="text-[11px] text-muted-foreground">
+              Browser-playable feeds: HLS (.m3u8), MP4/WebM, or MJPEG (e.g.
+              http://ip/axis-cgi/mjpg/video.cgi). RTSP cameras must be restreamed to HLS first.
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
