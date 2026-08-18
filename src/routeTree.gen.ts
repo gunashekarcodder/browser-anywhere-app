@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as IncidentsRouteImport } from './routes/incidents'
+import { Route as MapRouteImport } from './routes/map'
 import { Route as MonitorRouteImport } from './routes/monitor'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const IncidentsRoute = IncidentsRouteImport.update({
   path: '/incidents',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MapRoute = MapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MonitorRoute = MonitorRouteImport.update({
   id: '/monitor',
   path: '/monitor',
@@ -32,30 +38,34 @@ const MonitorRoute = MonitorRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/incidents': typeof IncidentsRoute
+  '/map': typeof MapRoute
   '/monitor': typeof MonitorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/incidents': typeof IncidentsRoute
+  '/map': typeof MapRoute
   '/monitor': typeof MonitorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/incidents': typeof IncidentsRoute
+  '/map': typeof MapRoute
   '/monitor': typeof MonitorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/incidents' | '/monitor'
+  fullPaths: '/' | '/incidents' | '/map' | '/monitor'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/incidents' | '/monitor'
-  id: '__root__' | '/' | '/incidents' | '/monitor'
+  to: '/' | '/incidents' | '/map' | '/monitor'
+  id: '__root__' | '/' | '/incidents' | '/map' | '/monitor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   IncidentsRoute: typeof IncidentsRoute
+  MapRoute: typeof MapRoute
   MonitorRoute: typeof MonitorRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IncidentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/map': {
+      id: '/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof MapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/monitor': {
       id: '/monitor'
       path: '/monitor'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   IncidentsRoute: IncidentsRoute,
+  MapRoute: MapRoute,
   MonitorRoute: MonitorRoute,
 }
 export const routeTree = rootRouteImport
