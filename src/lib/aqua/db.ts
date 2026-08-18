@@ -136,7 +136,7 @@ export const evidenceQuery = queryOptions({
         .from("evidence")
         .select("*")
         .order("captured_at", { ascending: false })
-        .limit(120),
+        .limit(600),
     ) as Evidence[],
   refetchInterval: 8000,
 });
