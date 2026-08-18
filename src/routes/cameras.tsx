@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/aqua/AppShell";
+import { CameraFeedPreview } from "@/components/aqua/CameraFeedPreview";
 import { StatusBadge } from "@/components/aqua/SeverityBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { camerasQuery, frameMetricsQuery, zonesQuery } from "@/lib/aqua/db";
+import { detectFeedProtocol, PROTOCOL_LABEL } from "@/lib/aqua/feeds";
 
 export const Route = createFileRoute("/cameras")({
   head: () => ({
