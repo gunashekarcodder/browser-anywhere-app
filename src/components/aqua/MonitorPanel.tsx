@@ -33,6 +33,12 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { verifyFrame, type FrameVerification } from "@/lib/ai-vision.functions";
 import { camerasQuery, zonesQuery } from "@/lib/aqua/db";
+import {
+  attachHlsFeed,
+  bustCache,
+  detectFeedProtocol,
+  PROTOCOL_LABEL,
+} from "@/lib/aqua/feeds";
 import { BAND_ADVICE, scoreSeverity, type SeverityResult } from "@/lib/aqua/severity";
 import {
   PersistenceGate,
@@ -41,7 +47,7 @@ import {
   type FrameFeatures,
 } from "@/lib/aqua/vision";
 
-type SourceKind = "sample-video" | "sample-image" | "upload" | "stream" | "webcam";
+type SourceKind = "sample-video" | "sample-image" | "upload" | "stream" | "webcam" | "camera";
 
 const SAMPLE_IMAGES = [
   { url: flood01.url, label: "Flooded street (Wikimedia Commons)" },
@@ -53,9 +59,17 @@ const SAMPLE_IMAGES = [
 const ANALYSIS_INTERVAL_MS = 250;
 const METRIC_WRITE_MS = 5000;
 const INCIDENT_UPDATE_MS = 10000;
+const REPLAY_FRAME_MS = 3000;
+const MJPEG_REFRESH_MS = 1000;
 const WORK_WIDTH = 384;
 
-export function MonitorPanel() {
+export function MonitorPanel({
+  initialCameraId,
+  startWithCameraFeed = false,
+}: {
+  initialCameraId?: string | undefined;
+  startWithCameraFeed?: boolean | undefined;
+} = {}) {
   const qc = useQueryClient();
   const runVerify = useServerFn(verifyFrame);
   const { data: zones = [] } = useQuery(zonesQuery);
@@ -72,8 +86,11 @@ export function MonitorPanel() {
   const incidentIdRef = useRef<string | null>(null);
   const verifyRef = useRef<FrameVerification | null>(null);
   const busyRef = useRef(false);
+  const lastReplayRef = useRef(0);
 
-  const [sourceKind, setSourceKind] = useState<SourceKind>("sample-video");
+  const [sourceKind, setSourceKind] = useState<SourceKind>(
+    startWithCameraFeed ? "camera" : "sample-video",
+  );
   const [videoSrc, setVideoSrc] = useState<string>(floodClip.url);
   const [imageSrc, setImageSrc] = useState<string>(SAMPLE_IMAGES[0]!.url);
   const [streamInput, setStreamInput] = useState("");
@@ -90,22 +107,57 @@ export function MonitorPanel() {
   const [verifying, setVerifying] = useState(false);
   const [fps, setFps] = useState(0);
   const [zoneId, setZoneId] = useState<string>("");
-  const [cameraId, setCameraId] = useState<string>("");
+  const [cameraId, setCameraId] = useState<string>(initialCameraId ?? "");
+  const [feedError, setFeedError] = useState<string | null>(null);
+  const [mjpegTick, setMjpegTick] = useState(0);
 
   useEffect(() => {
     if (!zoneId && zones[0]) setZoneId(zones[0].id);
   }, [zones, zoneId]);
   useEffect(() => {
-    if (!cameraId && cameras[0]) setCameraId(cameras[0].id);
+    if (cameras.length === 0) return;
+    if (!cameras.some((c) => c.id === cameraId)) setCameraId(cameras[0]!.id);
   }, [cameras, cameraId]);
 
   const zone = useMemo(() => zones.find((z) => z.id === zoneId), [zones, zoneId]);
   const camera = useMemo(() => cameras.find((c) => c.id === cameraId), [cameras, cameraId]);
-  const isImage = sourceKind === "sample-image";
+  const feedProtocol = useMemo(
+    () => (sourceKind === "camera" ? detectFeedProtocol(camera?.source_url) : "unknown"),
+    [camera?.source_url, sourceKind],
+  );
+  const cameraFeedUrl = sourceKind === "camera" ? (camera?.source_url ?? "") : "";
+  const isImage =
+    sourceKind === "sample-image" || (sourceKind === "camera" && feedProtocol === "mjpeg");
 
   useEffect(() => {
     gateRef.current = new PersistenceGate(threshold, 6, 0.7);
   }, [threshold]);
+
+  // ---- real IP camera feeds -----------------------------------------------
+  const isSnapshotFeed =
+    feedProtocol === "mjpeg" && /snapshot|\.jpe?g/i.test(cameraFeedUrl);
+
+  useEffect(() => {
+    setFeedError(null);
+    const video = videoRef.current;
+    if (!video || sourceKind !== "camera" || feedProtocol !== "hls" || !cameraFeedUrl) return;
+    let cancelled = false;
+    let cleanup = () => {};
+    void attachHlsFeed(video, cameraFeedUrl, setFeedError).then((fn) => {
+      if (cancelled) fn();
+      else cleanup = fn;
+    });
+    return () => {
+      cancelled = true;
+      cleanup();
+    };
+  }, [cameraFeedUrl, feedProtocol, sourceKind]);
+
+  useEffect(() => {
+    if (!running || !isSnapshotFeed) return;
+    const handle = window.setInterval(() => setMjpegTick((t) => t + 1), MJPEG_REFRESH_MS);
+    return () => window.clearInterval(handle);
+  }, [isSnapshotFeed, running]);
 
   const stopWebcam = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -211,6 +263,22 @@ export function MonitorPanel() {
       } else if (now - lastIncidentWriteRef.current > INCIDENT_UPDATE_MS) {
         lastIncidentWriteRef.current = now;
         await supabase.from("incidents").update(payload).eq("id", incidentIdRef.current);
+      }
+
+      // Keep appending replay frames so the incident stays rewatchable later.
+      if (incidentIdRef.current && now - lastReplayRef.current > REPLAY_FRAME_MS) {
+        lastReplayRef.current = now;
+        const frame = captureSnapshot();
+        if (frame) {
+          await supabase.from("evidence").insert({
+            incident_id: incidentIdRef.current,
+            image_url: frame,
+            water_coverage: payload.water_coverage,
+            severity_score: sev.score,
+            caption: `Replay frame — ${(feat.waterCoverage * 100).toFixed(1)}% coverage, ${sev.band}`,
+          });
+          void qc.invalidateQueries({ queryKey: ["evidence"] });
+        }
       }
       void qc.invalidateQueries({ queryKey: ["incidents"] });
     },
@@ -336,6 +404,25 @@ export function MonitorPanel() {
 
   const start = useCallback(async () => {
     gateRef.current.reset();
+    if (sourceKind === "camera") {
+      if (!cameraFeedUrl) {
+        toast.error("This camera has no feed URL. Add one in the camera registry.");
+        return;
+      }
+      if (feedProtocol === "rtsp") {
+        toast.error("RTSP can't play in a browser — restream the camera as HLS (.m3u8).");
+        return;
+      }
+      if (feedProtocol !== "mjpeg" && videoRef.current) {
+        try {
+          await videoRef.current.play();
+        } catch {
+          setFeedError("Feed blocked by autoplay or CORS policy.");
+        }
+      }
+      setRunning(true);
+      return;
+    }
     if (sourceKind === "webcam") {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -359,7 +446,7 @@ export function MonitorPanel() {
       }
     }
     setRunning(true);
-  }, [isImage, sourceKind]);
+  }, [cameraFeedUrl, feedProtocol, isImage, sourceKind]);
 
   const stop = useCallback(() => {
     setRunning(false);
@@ -485,6 +572,7 @@ export function MonitorPanel() {
                   <SelectItem value="sample-image">Still image / dataset frame</SelectItem>
                   <SelectItem value="upload">Uploaded video</SelectItem>
                   <SelectItem value="stream">Stream / camera URL (MP4, HLS-native)</SelectItem>
+                  <SelectItem value="camera">Registered IP camera (HLS / MJPEG / MP4)</SelectItem>
                   <SelectItem value="webcam">Device camera (drone/phone feed)</SelectItem>
                 </SelectContent>
               </Select>
@@ -551,6 +639,23 @@ export function MonitorPanel() {
                   <img src={img.url} alt={img.label} className="h-14 w-24 object-cover" />
                 </button>
               ))}
+            </div>
+          )}
+
+          {sourceKind === "camera" && (
+            <div className="rounded-md border border-border bg-muted/25 p-3 text-xs">
+              <p className="font-medium text-foreground">
+                {camera ? camera.name : "No camera selected"} · {PROTOCOL_LABEL[feedProtocol]}
+              </p>
+              <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+                {cameraFeedUrl || "No feed URL registered for this camera."}
+              </p>
+              {feedProtocol === "rtsp" && (
+                <p className="mt-1 text-muted-foreground">
+                  Browsers can&apos;t decode RTSP. Restream it as HLS and update the camera URL.
+                </p>
+              )}
+              {feedError && <p className="mt-1 text-critical">{feedError}</p>}
             </div>
           )}
 
@@ -734,7 +839,15 @@ export function MonitorPanel() {
       {/* Hidden media elements feeding the analysis canvas. */}
       <video
         ref={videoRef}
-        src={isImage || sourceKind === "webcam" ? undefined : videoSrc}
+        src={
+          isImage || sourceKind === "webcam"
+            ? undefined
+            : sourceKind === "camera"
+              ? feedProtocol === "video"
+                ? cameraFeedUrl || undefined
+                : undefined
+              : videoSrc
+        }
         className="hidden"
         muted
         loop
@@ -743,7 +856,15 @@ export function MonitorPanel() {
       />
       <img
         ref={imageRef}
-        src={isImage ? imageSrc : undefined}
+        src={
+          !isImage
+            ? undefined
+            : sourceKind === "camera"
+              ? isSnapshotFeed
+                ? bustCache(cameraFeedUrl) + "&f=" + mjpegTick
+                : cameraFeedUrl
+              : imageSrc
+        }
         alt=""
         className="hidden"
         crossOrigin="anonymous"
@@ -769,6 +890,7 @@ function sourceLabel(kind: SourceKind, cameraName?: string) {
     upload: "uploaded video",
     stream: "network feed",
     webcam: "device camera",
+    camera: "registered IP camera",
   };
   return cameraName ? `${base[kind]} @ ${cameraName}` : base[kind];
 }

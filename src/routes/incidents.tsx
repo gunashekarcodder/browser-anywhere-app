@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/aqua/AppShell";
+import { IncidentReplay } from "@/components/aqua/IncidentReplay";
 import { SeverityBadge, StatusBadge } from "@/components/aqua/SeverityBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,7 +138,7 @@ function IncidentsRoute() {
       ) : (
         <div className="space-y-4">
           {filtered.map((incident) => {
-            const shots = evidence.filter((e) => e.incident_id === incident.id).slice(0, 4);
+            const shots = evidence.filter((e) => e.incident_id === incident.id);
             const trail = actions.filter((a) => a.incident_id === incident.id);
             return (
               <article key={incident.id} className="panel p-4">
@@ -200,16 +201,22 @@ function IncidentsRoute() {
                 </dl>
 
                 {shots.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {shots.map((s) => (
-                      <img
-                        key={s.id}
-                        src={s.image_url ?? ""}
-                        alt={s.caption ?? "Incident evidence"}
-                        className="h-20 w-32 rounded-md border border-border object-cover"
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {shots.slice(0, 4).map((s) => (
+                        <img
+                          key={s.id}
+                          src={s.image_url ?? ""}
+                          alt={s.caption ?? "Incident evidence"}
+                          className="h-20 w-32 rounded-md border border-border object-cover"
+                        />
+                      ))}
+                    </div>
+                    <IncidentReplay
+                      frames={shots}
+                      label={`${zoneName(incident.zone_id)}-${new Date(incident.first_seen).toISOString().slice(0, 16)}`}
+                    />
+                  </>
                 )}
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">

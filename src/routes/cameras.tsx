@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/aqua/AppShell";
+import { CameraFeedPreview } from "@/components/aqua/CameraFeedPreview";
 import { StatusBadge } from "@/components/aqua/SeverityBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { camerasQuery, frameMetricsQuery, zonesQuery } from "@/lib/aqua/db";
+import { detectFeedProtocol, PROTOCOL_LABEL } from "@/lib/aqua/feeds";
 
 export const Route = createFileRoute("/cameras")({
   head: () => ({
@@ -53,6 +55,9 @@ function CamerasRoute() {
     lat: "",
     lng: "",
   });
+  const [preview, setPreview] = useState<Record<string, boolean>>({});
+
+
 
   const add = async () => {
     if (!form.name.trim()) {
@@ -84,32 +89,57 @@ function CamerasRoute() {
           {cameras.map((c) => {
             const frames = metrics.filter((m) => m.camera_id === c.id);
             const flagged = frames.filter((m) => m.verdict === "waterlogged").length;
+            const protocol = detectFeedProtocol(c.source_url);
             return (
-              <div key={c.id} className="panel flex flex-wrap items-start justify-between gap-3 p-4">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-display text-sm font-semibold">{c.name}</h2>
-                    <span className="rounded-full border border-border px-2 py-0.5 text-xs capitalize text-muted-foreground">
-                      {c.camera_type}
-                    </span>
-                    <StatusBadge status={c.status} />
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {zones.find((z) => z.id === c.zone_id)?.name ?? "No zone"} ·{" "}
-                    {c.lat != null ? `${Number(c.lat).toFixed(4)}, ${Number(c.lng).toFixed(4)}` : "no GPS"}
-                  </p>
-                  {c.source_url && (
-                    <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
-                      {c.source_url}
+              <div key={c.id} className="panel p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-display text-sm font-semibold">{c.name}</h2>
+                      <span className="rounded-full border border-border px-2 py-0.5 text-xs capitalize text-muted-foreground">
+                        {c.camera_type}
+                      </span>
+                      <StatusBadge status={c.status} />
+                      <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                        {PROTOCOL_LABEL[protocol]}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {zones.find((z) => z.id === c.zone_id)?.name ?? "No zone"} ·{" "}
+                      {c.lat != null ? `${Number(c.lat).toFixed(4)}, ${Number(c.lng).toFixed(4)}` : "no GPS"}
                     </p>
-                  )}
+                    {c.source_url && (
+                      <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+                        {c.source_url}
+                      </p>
+                    )}
+                    {c.source_url && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            setPreview((p) => ({ ...p, [c.id]: !p[c.id] }))
+                          }
+                        >
+                          {preview[c.id] ? "Hide feed" : "Preview feed"}
+                        </Button>
+                        <Button size="sm" variant="outline" asChild>
+                          <Link to="/monitor" search={{ camera: c.id }}>
+                            Analyse in monitor
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right text-xs text-muted-foreground">
+                    <p className="font-mono text-base text-foreground">{frames.length}</p>
+                    <p>frames logged</p>
+                    <p className="mt-1 font-mono text-sm text-foreground">{flagged}</p>
+                    <p>flagged waterlogged</p>
+                  </div>
                 </div>
-                <div className="text-right text-xs text-muted-foreground">
-                  <p className="font-mono text-base text-foreground">{frames.length}</p>
-                  <p>frames logged</p>
-                  <p className="mt-1 font-mono text-sm text-foreground">{flagged}</p>
-                  <p>flagged waterlogged</p>
-                </div>
+                {c.source_url && preview[c.id] && <CameraFeedPreview url={c.source_url} />}
               </div>
             );
           })}
@@ -169,8 +199,12 @@ function CamerasRoute() {
               id="cam-url"
               value={form.source_url}
               onChange={(e) => setForm((f) => ({ ...f, source_url: e.target.value }))}
-              placeholder="https://…/live.mp4"
+              placeholder="https://cam.city.gov/hls/pole4.m3u8"
             />
+            <p className="text-[11px] text-muted-foreground">
+              Browser-playable feeds: HLS (.m3u8), MP4/WebM, or MJPEG (e.g.
+              http://ip/axis-cgi/mjpg/video.cgi). RTSP cameras must be restreamed to HLS first.
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

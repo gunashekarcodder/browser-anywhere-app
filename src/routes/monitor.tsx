@@ -22,16 +22,23 @@ export const Route = createFileRoute("/monitor")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { camera?: string } =>
+    typeof search["camera"] === "string" ? { camera: search["camera"] } : {},
   component: MonitorRoute,
 });
 
 function MonitorRoute() {
+  const camera = Route.useSearch()["camera"];
   return (
     <AppShell
       title="Live monitor"
       subtitle="Rule-based water detection with temporal persistence gating and AI verification"
     >
-      <MonitorPanel />
+      <MonitorPanel
+        key={camera ?? "default"}
+        initialCameraId={camera}
+        startWithCameraFeed={Boolean(camera)}
+      />
     </AppShell>
   );
 }
