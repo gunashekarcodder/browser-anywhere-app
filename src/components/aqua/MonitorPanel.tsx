@@ -31,6 +31,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureOperator } from "@/lib/aqua/auth";
 import { verifyFrame, type FrameVerification } from "@/lib/ai-vision.functions";
 import { camerasQuery, zonesQuery } from "@/lib/aqua/db";
 import {
@@ -533,6 +534,7 @@ export function MonitorPanel({
                   toast.error("Nothing to save yet.");
                   return;
                 }
+                if (!(await ensureOperator("save evidence"))) return;
                 const { error } = await supabase.from("evidence").insert({
                   incident_id: incidentIdRef.current,
                   image_url: snapshot,

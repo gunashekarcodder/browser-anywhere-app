@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureOperator } from "@/lib/aqua/auth";
 import { camerasQuery, frameMetricsQuery, zonesQuery } from "@/lib/aqua/db";
 import { detectFeedProtocol, PROTOCOL_LABEL } from "@/lib/aqua/feeds";
 
@@ -64,6 +65,7 @@ function CamerasRoute() {
       toast.error("Give the camera a name.");
       return;
     }
+    if (!(await ensureOperator("register a camera"))) return;
     const { error } = await supabase.from("cameras").insert({
       name: form.name.trim(),
       camera_type: form.camera_type,
