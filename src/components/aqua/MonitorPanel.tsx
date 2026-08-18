@@ -115,7 +115,8 @@ export function MonitorPanel({
     if (!zoneId && zones[0]) setZoneId(zones[0].id);
   }, [zones, zoneId]);
   useEffect(() => {
-    if (!cameraId && cameras[0]) setCameraId(cameras[0].id);
+    if (cameras.length === 0) return;
+    if (!cameras.some((c) => c.id === cameraId)) setCameraId(cameras[0]!.id);
   }, [cameras, cameraId]);
 
   const zone = useMemo(() => zones.find((z) => z.id === zoneId), [zones, zoneId]);
