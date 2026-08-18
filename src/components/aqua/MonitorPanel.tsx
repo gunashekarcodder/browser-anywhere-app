@@ -57,7 +57,13 @@ const REPLAY_FRAME_MS = 3000;
 const MJPEG_REFRESH_MS = 1000;
 const WORK_WIDTH = 384;
 
-export function MonitorPanel() {
+export function MonitorPanel({
+  initialCameraId,
+  startWithCameraFeed = false,
+}: {
+  initialCameraId?: string;
+  startWithCameraFeed?: boolean;
+} = {}) {
   const qc = useQueryClient();
   const runVerify = useServerFn(verifyFrame);
   const { data: zones = [] } = useQuery(zonesQuery);
@@ -74,8 +80,11 @@ export function MonitorPanel() {
   const incidentIdRef = useRef<string | null>(null);
   const verifyRef = useRef<FrameVerification | null>(null);
   const busyRef = useRef(false);
+  const lastReplayRef = useRef(0);
 
-  const [sourceKind, setSourceKind] = useState<SourceKind>("sample-video");
+  const [sourceKind, setSourceKind] = useState<SourceKind>(
+    startWithCameraFeed ? "camera" : "sample-video",
+  );
   const [videoSrc, setVideoSrc] = useState<string>(floodClip.url);
   const [imageSrc, setImageSrc] = useState<string>(SAMPLE_IMAGES[0]!.url);
   const [streamInput, setStreamInput] = useState("");
@@ -92,7 +101,9 @@ export function MonitorPanel() {
   const [verifying, setVerifying] = useState(false);
   const [fps, setFps] = useState(0);
   const [zoneId, setZoneId] = useState<string>("");
-  const [cameraId, setCameraId] = useState<string>("");
+  const [cameraId, setCameraId] = useState<string>(initialCameraId ?? "");
+  const [feedError, setFeedError] = useState<string | null>(null);
+  const [mjpegTick, setMjpegTick] = useState(0);
 
   useEffect(() => {
     if (!zoneId && zones[0]) setZoneId(zones[0].id);
@@ -103,7 +114,13 @@ export function MonitorPanel() {
 
   const zone = useMemo(() => zones.find((z) => z.id === zoneId), [zones, zoneId]);
   const camera = useMemo(() => cameras.find((c) => c.id === cameraId), [cameras, cameraId]);
-  const isImage = sourceKind === "sample-image";
+  const feedProtocol = useMemo(
+    () => (sourceKind === "camera" ? detectFeedProtocol(camera?.source_url) : "unknown"),
+    [camera?.source_url, sourceKind],
+  );
+  const cameraFeedUrl = sourceKind === "camera" ? (camera?.source_url ?? "") : "";
+  const isImage =
+    sourceKind === "sample-image" || (sourceKind === "camera" && feedProtocol === "mjpeg");
 
   useEffect(() => {
     gateRef.current = new PersistenceGate(threshold, 6, 0.7);
@@ -771,6 +788,7 @@ function sourceLabel(kind: SourceKind, cameraName?: string) {
     upload: "uploaded video",
     stream: "network feed",
     webcam: "device camera",
+    camera: "registered IP camera",
   };
   return cameraName ? `${base[kind]} @ ${cameraName}` : base[kind];
 }
