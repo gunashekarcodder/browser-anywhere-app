@@ -55,6 +55,9 @@ function CamerasRoute() {
     lat: "",
     lng: "",
   });
+  const [preview, setPreview] = useState<Record<string, boolean>>({});
+
+
 
   const add = async () => {
     if (!form.name.trim()) {
