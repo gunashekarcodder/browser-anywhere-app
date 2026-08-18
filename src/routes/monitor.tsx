@@ -22,14 +22,13 @@ export const Route = createFileRoute("/monitor")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>) => ({
-    camera: typeof search.camera === "string" ? search.camera : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { camera?: string } =>
+    typeof search["camera"] === "string" ? { camera: search["camera"] } : {},
   component: MonitorRoute,
 });
 
 function MonitorRoute() {
-  const { camera } = Route.useSearch();
+  const camera = Route.useSearch()["camera"];
   return (
     <AppShell
       title="Live monitor"

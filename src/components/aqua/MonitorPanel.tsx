@@ -67,8 +67,8 @@ export function MonitorPanel({
   initialCameraId,
   startWithCameraFeed = false,
 }: {
-  initialCameraId?: string;
-  startWithCameraFeed?: boolean;
+  initialCameraId?: string | undefined;
+  startWithCameraFeed?: boolean | undefined;
 } = {}) {
   const qc = useQueryClient();
   const runVerify = useServerFn(verifyFrame);
