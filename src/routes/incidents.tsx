@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureOperator } from "@/lib/aqua/auth";
 import {
   actionsQuery,
   camerasQuery,
@@ -68,6 +69,7 @@ function IncidentsRoute() {
   );
 
   const logAction = async (incidentId: string, actionType: string, text?: string) => {
+    if (!(await ensureOperator("log a response action"))) return;
     const { error } = await supabase.from("operator_actions").insert({
       incident_id: incidentId,
       action_type: actionType,

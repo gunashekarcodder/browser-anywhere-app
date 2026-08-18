@@ -8,12 +8,15 @@ import {
   LayoutDashboard,
   Map,
   Menu,
+  LogIn,
+  LogOut,
   Radar,
   X,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -38,6 +41,7 @@ export function AppShell({
   actions?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const { isAuthenticated, user, signOut } = useAuth();
 
   return (
     <div className="min-h-screen lg:flex">
@@ -126,6 +130,22 @@ export function AppShell({
               )}
             </div>
             {actions && <div className="flex items-center gap-2">{actions}</div>}
+            {isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <span className="hidden max-w-40 truncate text-xs text-muted-foreground sm:block">
+                  {user?.email}
+                </span>
+                <Button variant="outline" size="sm" onClick={() => void signOut()}>
+                  <LogOut className="mr-1.5 h-4 w-4" /> Sign out
+                </Button>
+              </div>
+            ) : (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/auth">
+                  <LogIn className="mr-1.5 h-4 w-4" /> Operator sign-in
+                </Link>
+              </Button>
+            )}
           </div>
         </header>
         <main className="px-4 py-5 md:px-6 md:py-7">{children}</main>

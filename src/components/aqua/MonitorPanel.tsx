@@ -31,6 +31,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureOperator } from "@/lib/aqua/auth";
 import { verifyFrame, type FrameVerification } from "@/lib/ai-vision.functions";
 import { camerasQuery, zonesQuery } from "@/lib/aqua/db";
 import {
@@ -403,6 +404,7 @@ export function MonitorPanel({
   }, [autoLog, cameraId, camera?.name, isImage, persistIncident, qc, roiTop, running, sourceKind, zone?.drainage_risk]);
 
   const start = useCallback(async () => {
+    if (autoLog && !(await ensureOperator("log detections to the incident database"))) return;
     gateRef.current.reset();
     if (sourceKind === "camera") {
       if (!cameraFeedUrl) {
@@ -446,7 +448,7 @@ export function MonitorPanel({
       }
     }
     setRunning(true);
-  }, [cameraFeedUrl, feedProtocol, isImage, sourceKind]);
+  }, [autoLog, cameraFeedUrl, feedProtocol, isImage, sourceKind]);
 
   const stop = useCallback(() => {
     setRunning(false);
@@ -533,6 +535,7 @@ export function MonitorPanel({
                   toast.error("Nothing to save yet.");
                   return;
                 }
+                if (!(await ensureOperator("save evidence"))) return;
                 const { error } = await supabase.from("evidence").insert({
                   incident_id: incidentIdRef.current,
                   image_url: snapshot,
