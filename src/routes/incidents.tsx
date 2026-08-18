@@ -200,16 +200,22 @@ function IncidentsRoute() {
                 </dl>
 
                 {shots.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {shots.map((s) => (
-                      <img
-                        key={s.id}
-                        src={s.image_url ?? ""}
-                        alt={s.caption ?? "Incident evidence"}
-                        className="h-20 w-32 rounded-md border border-border object-cover"
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {shots.slice(0, 4).map((s) => (
+                        <img
+                          key={s.id}
+                          src={s.image_url ?? ""}
+                          alt={s.caption ?? "Incident evidence"}
+                          className="h-20 w-32 rounded-md border border-border object-cover"
+                        />
+                      ))}
+                    </div>
+                    <IncidentReplay
+                      frames={shots}
+                      label={`${zoneName(incident.zone_id)}-${new Date(incident.first_seen).toISOString().slice(0, 16)}`}
+                    />
+                  </>
                 )}
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
