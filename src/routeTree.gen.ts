@@ -10,33 +10,115 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CamerasRouteImport } from './routes/cameras'
+import { Route as DatasetsRouteImport } from './routes/datasets'
+import { Route as EvaluationRouteImport } from './routes/evaluation'
+import { Route as IncidentsRouteImport } from './routes/incidents'
+import { Route as MapRouteImport } from './routes/map'
+import { Route as MonitorRouteImport } from './routes/monitor'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CamerasRoute = CamerasRouteImport.update({
+  id: '/cameras',
+  path: '/cameras',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DatasetsRoute = DatasetsRouteImport.update({
+  id: '/datasets',
+  path: '/datasets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EvaluationRoute = EvaluationRouteImport.update({
+  id: '/evaluation',
+  path: '/evaluation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IncidentsRoute = IncidentsRouteImport.update({
+  id: '/incidents',
+  path: '/incidents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MapRoute = MapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorRoute = MonitorRouteImport.update({
+  id: '/monitor',
+  path: '/monitor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cameras': typeof CamerasRoute
+  '/datasets': typeof DatasetsRoute
+  '/evaluation': typeof EvaluationRoute
+  '/incidents': typeof IncidentsRoute
+  '/map': typeof MapRoute
+  '/monitor': typeof MonitorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cameras': typeof CamerasRoute
+  '/datasets': typeof DatasetsRoute
+  '/evaluation': typeof EvaluationRoute
+  '/incidents': typeof IncidentsRoute
+  '/map': typeof MapRoute
+  '/monitor': typeof MonitorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cameras': typeof CamerasRoute
+  '/datasets': typeof DatasetsRoute
+  '/evaluation': typeof EvaluationRoute
+  '/incidents': typeof IncidentsRoute
+  '/map': typeof MapRoute
+  '/monitor': typeof MonitorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/cameras'
+    | '/datasets'
+    | '/evaluation'
+    | '/incidents'
+    | '/map'
+    | '/monitor'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/cameras'
+    | '/datasets'
+    | '/evaluation'
+    | '/incidents'
+    | '/map'
+    | '/monitor'
+  id:
+    | '__root__'
+    | '/'
+    | '/cameras'
+    | '/datasets'
+    | '/evaluation'
+    | '/incidents'
+    | '/map'
+    | '/monitor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CamerasRoute: typeof CamerasRoute
+  DatasetsRoute: typeof DatasetsRoute
+  EvaluationRoute: typeof EvaluationRoute
+  IncidentsRoute: typeof IncidentsRoute
+  MapRoute: typeof MapRoute
+  MonitorRoute: typeof MonitorRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +130,59 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cameras': {
+      id: '/cameras'
+      path: '/cameras'
+      fullPath: '/cameras'
+      preLoaderRoute: typeof CamerasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/datasets': {
+      id: '/datasets'
+      path: '/datasets'
+      fullPath: '/datasets'
+      preLoaderRoute: typeof DatasetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/evaluation': {
+      id: '/evaluation'
+      path: '/evaluation'
+      fullPath: '/evaluation'
+      preLoaderRoute: typeof EvaluationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/incidents': {
+      id: '/incidents'
+      path: '/incidents'
+      fullPath: '/incidents'
+      preLoaderRoute: typeof IncidentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/map': {
+      id: '/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof MapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitor': {
+      id: '/monitor'
+      path: '/monitor'
+      fullPath: '/monitor'
+      preLoaderRoute: typeof MonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CamerasRoute: CamerasRoute,
+  DatasetsRoute: DatasetsRoute,
+  EvaluationRoute: EvaluationRoute,
+  IncidentsRoute: IncidentsRoute,
+  MapRoute: MapRoute,
+  MonitorRoute: MonitorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
