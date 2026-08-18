@@ -137,7 +137,7 @@ function IncidentsRoute() {
       ) : (
         <div className="space-y-4">
           {filtered.map((incident) => {
-            const shots = evidence.filter((e) => e.incident_id === incident.id).slice(0, 4);
+            const shots = evidence.filter((e) => e.incident_id === incident.id);
             const trail = actions.filter((a) => a.incident_id === incident.id);
             return (
               <article key={incident.id} className="panel p-4">
