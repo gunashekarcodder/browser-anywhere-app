@@ -41,7 +41,7 @@ import {
   type FrameFeatures,
 } from "@/lib/aqua/vision";
 
-type SourceKind = "sample-video" | "sample-image" | "upload" | "stream" | "webcam";
+type SourceKind = "sample-video" | "sample-image" | "upload" | "stream" | "webcam" | "camera";
 
 const SAMPLE_IMAGES = [
   { url: flood01.url, label: "Flooded street (Wikimedia Commons)" },
@@ -53,6 +53,8 @@ const SAMPLE_IMAGES = [
 const ANALYSIS_INTERVAL_MS = 250;
 const METRIC_WRITE_MS = 5000;
 const INCIDENT_UPDATE_MS = 10000;
+const REPLAY_FRAME_MS = 3000;
+const MJPEG_REFRESH_MS = 1000;
 const WORK_WIDTH = 384;
 
 export function MonitorPanel() {
