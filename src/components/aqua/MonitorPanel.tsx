@@ -404,6 +404,7 @@ export function MonitorPanel({
   }, [autoLog, cameraId, camera?.name, isImage, persistIncident, qc, roiTop, running, sourceKind, zone?.drainage_risk]);
 
   const start = useCallback(async () => {
+    if (autoLog && !(await ensureOperator("log detections to the incident database"))) return;
     gateRef.current.reset();
     if (sourceKind === "camera") {
       if (!cameraFeedUrl) {
@@ -447,7 +448,7 @@ export function MonitorPanel({
       }
     }
     setRunning(true);
-  }, [cameraFeedUrl, feedProtocol, isImage, sourceKind]);
+  }, [autoLog, cameraFeedUrl, feedProtocol, isImage, sourceKind]);
 
   const stop = useCallback(() => {
     setRunning(false);
