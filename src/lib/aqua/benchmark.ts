@@ -18,6 +18,10 @@
 import { analyseFrame, floodConfidence, type FrameFeatures } from "@/lib/aqua/vision";
 import { TEST_SET, type TestSample } from "@/lib/aqua/testset";
 
+export type VerifyFn = (payload: {
+  data: { image: string; contextLabel?: string; ruleCoverage?: number };
+}) => Promise<{ waterlogged: boolean; confidence: number; summary: string }>;
+
 export type SampleResult = {
   id: string;
   label: "flood" | "clear";
@@ -35,6 +39,14 @@ export type SampleResult = {
   /** Detector latency in ms (decode excluded). */
   inferenceMs: number;
   decodeMs: number;
+  /** Stage-2 AI verification, when the end-to-end pipeline was benchmarked. */
+  aiVerdict: "flood" | "clear" | "not-screened" | null;
+  aiConfidence: number | null;
+  aiSummary: string | null;
+  aiLatencyMs: number | null;
+  /** End-to-end prediction (stage 1 screening AND stage 2 confirmation). */
+  endToEnd: "flood" | "clear" | null;
+  endToEndOutcome: "TP" | "FP" | "FN" | "TN" | null;
 };
 
 export type BenchmarkMetrics = {
@@ -65,6 +77,9 @@ export type BenchmarkRun = {
   ranAt: string;
   metrics: BenchmarkMetrics;
   sweep: { threshold: number; precision: number; recall: number; f1: number; falseAlertRate: number }[];
+  /** Metrics for the full pipeline (rule screening + AI confirmation), if run. */
+  endToEnd: BenchmarkMetrics | null;
+  aiLatency: { mean: number; p95: number } | null;
   bestF1Threshold: number;
   samples: SampleResult[];
   userAgent: string;
@@ -120,6 +135,8 @@ export type BenchOptions = {
   roiTop?: number;
   onProgress?: (done: number, total: number, sample: TestSample) => void;
   samples?: TestSample[];
+  /** Supply useServerFn(verifyFrame) to also benchmark the AI confirmation stage. */
+  verify?: VerifyFn;
 };
 
 /** Analyse every test image once, then derive metrics for the chosen threshold. */
