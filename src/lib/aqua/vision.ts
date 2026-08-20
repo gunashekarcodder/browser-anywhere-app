@@ -23,6 +23,14 @@ export type FrameFeatures = {
   textureScore: number;
   /** Mean brightness of the ROI, used to flag night / low-light frames. */
   luma: number;
+  /** Mean brightness of the water-candidate pixels. */
+  waterLuma: number;
+  /** Mean brightness of road pixels NOT classified as water (dry surface). */
+  dryRoadLuma: number;
+  /** Std-dev of brightness inside the water candidate area (reflection structure). */
+  waterLumaStd: number;
+  /** Mean colour saturation of the water candidate area. */
+  waterSaturation: number;
   /** Analysed ROI dimensions. */
   roiWidth: number;
   roiHeight: number;
@@ -83,6 +91,11 @@ export function analyseFrame(
   let gradSum = 0;
   let waterGradSum = 0;
   let lumaSum = 0;
+  let waterLumaSum = 0;
+  let waterLumaSqSum = 0;
+  let waterSatSum = 0;
+  let dryRoadLumaSum = 0;
+  let dryRoadPixels = 0;
 
   const at = (x: number, y: number) => (y * width + x) * 4;
   const lumaAt = (x: number, y: number) => {
@@ -126,8 +139,14 @@ export function analyseFrame(
       if (isWater) {
         waterPixels++;
         waterGradSum += grad;
+        waterLumaSum += l;
+        waterLumaSqSum += l * l;
+        waterSatSum += s;
         if (isRoad) waterOnRoad++;
         mask[row * cols + col] = 1;
+      } else if (isRoad) {
+        dryRoadPixels++;
+        dryRoadLumaSum += l;
       }
     }
   }
@@ -139,11 +158,42 @@ export function analyseFrame(
     roadBlockedRatio: waterPixels === 0 ? 0 : waterOnRoad / waterPixels,
     textureScore: waterPixels === 0 ? gradSum / safeSampled : waterGradSum / waterPixels,
     luma: lumaSum / safeSampled,
+    waterLuma: waterPixels === 0 ? 0 : waterLumaSum / waterPixels,
+    dryRoadLuma: dryRoadPixels === 0 ? 0 : dryRoadLumaSum / dryRoadPixels,
+    waterLumaStd:
+      waterPixels === 0
+        ? 0
+        : Math.sqrt(
+            Math.max(
+              0,
+              waterLumaSqSum / waterPixels - (waterLumaSum / waterPixels) ** 2,
+            ),
+          ),
+    waterSaturation: waterPixels === 0 ? 0 : waterSatSum / waterPixels,
     roiWidth: width,
     roiHeight: height - yStart,
   };
 
   return { features, mask, maskCols: cols, maskRows: rows };
+}
+
+/**
+ * Composite flood confidence (0-1) for a single frame.
+ *
+ * Coverage alone confuses rain-wet asphalt and night reflections with standing
+ * water, so the decision score also rewards water that actually sits on the
+ * road (roadBlockedRatio) and a specular, smooth surface (low textureScore),
+ * and damps very dark frames where colour information is unreliable.
+ * Every term is documented and auditable; the operating threshold is chosen
+ * from the measured sweep on the Evaluation page.
+ */
+export function floodConfidence(f: FrameFeatures): number {
+  const coverage = Math.min(1, f.waterCoverage / 0.45);
+  const onRoad = Math.min(1, f.roadBlockedRatio / 0.6);
+  const smooth = Math.max(0, Math.min(1, (0.14 - f.textureScore) / 0.14));
+  const nightDamp = f.luma < 0.18 ? 0.75 : 1;
+  const score = (0.5 * coverage + 0.3 * onRoad + 0.2 * smooth) * nightDamp;
+  return Math.max(0, Math.min(1, score));
 }
 
 /** Paint the water mask over a canvas for operator-visible annotation. */
