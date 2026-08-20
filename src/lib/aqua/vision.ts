@@ -191,8 +191,16 @@ export function floodConfidence(f: FrameFeatures): number {
   const coverage = Math.min(1, f.waterCoverage / 0.45);
   const onRoad = Math.min(1, f.roadBlockedRatio / 0.6);
   const smooth = Math.max(0, Math.min(1, (0.14 - f.textureScore) / 0.14));
-  const nightDamp = f.luma < 0.18 ? 0.75 : 1;
-  const score = (0.5 * coverage + 0.3 * onRoad + 0.2 * smooth) * nightDamp;
+  // Reflection structure: standing water carries sky/light reflections and
+  // submerged edges, so brightness varies inside the wet area. Uniform dry
+  // asphalt is smooth AND flat, which is the main false-alert source.
+  const reflectivity = Math.min(1, f.waterLumaStd / 0.13);
+  // Contrast against the remaining dry surface, when any dry road is visible.
+  const contrast =
+    f.dryRoadLuma === 0 ? 0.5 : Math.min(1, Math.abs(f.waterLuma - f.dryRoadLuma) / 0.12);
+  const nightDamp = f.luma < 0.18 ? 0.8 : 1;
+  const evidence = 0.45 * coverage + 0.2 * onRoad + 0.1 * smooth + 0.25 * reflectivity;
+  const score = evidence * (0.45 + 0.55 * Math.max(reflectivity, contrast)) * nightDamp;
   return Math.max(0, Math.min(1, score));
 }
 

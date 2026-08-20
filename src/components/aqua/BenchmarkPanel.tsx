@@ -194,6 +194,7 @@ export function BenchmarkPanel() {
                     <th className="py-2 pr-3">Confidence</th>
                     <th className="py-2 pr-3">Coverage</th>
                     <th className="py-2 pr-3">Road block</th>
+                    <th className="py-2 pr-3">Reflect σ</th>
                     <th className="py-2 pr-3">IoU</th>
                     <th className="py-2 pr-3">Latency</th>
                     <th className="py-2">Source / licence</th>
@@ -242,6 +243,7 @@ function SampleRow({ s }: { s: SampleResult }) {
       <td className="py-2 pr-3 font-mono">{s.confidence.toFixed(2)}</td>
       <td className="py-2 pr-3 font-mono">{(s.features.waterCoverage * 100).toFixed(1)}%</td>
       <td className="py-2 pr-3 font-mono">{(s.features.roadBlockedRatio * 100).toFixed(0)}%</td>
+      <td className="py-2 pr-3 font-mono">{s.features.waterLumaStd.toFixed(3)}</td>
       <td className="py-2 pr-3 font-mono">{s.iou === null ? "—" : s.iou.toFixed(3)}</td>
       <td className="py-2 pr-3 font-mono">{s.inferenceMs.toFixed(1)} ms</td>
       <td className="py-2 text-xs text-muted-foreground">
