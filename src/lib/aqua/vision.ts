@@ -103,6 +103,23 @@ export function analyseFrame(
     return (0.299 * data[i]! + 0.587 * data[i + 1]! + 0.114 * data[i + 2]!) / 255;
   };
 
+  // Pass 1: ROI brightness statistics. Standing water is judged relative to the
+  // surrounding surface, which is what separates a reflective sheet of water
+  // from uniformly smooth dry asphalt (the dominant false-alert source).
+  let preSum = 0;
+  let preCount = 0;
+  for (let row = 0; row < rows; row++) {
+    const y = yStart + row * stride;
+    if (y + stride >= height) break;
+    for (let col = 0; col < cols; col++) {
+      const x = col * stride;
+      if (x + stride >= width) break;
+      preSum += lumaAt(x, y);
+      preCount++;
+    }
+  }
+  const roiLuma = preCount === 0 ? 0 : preSum / preCount;
+
   for (let row = 0; row < rows; row++) {
     const y = yStart + row * stride;
     if (y + stride >= height) break;
@@ -127,10 +144,14 @@ export function analyseFrame(
       lumaSum += l;
 
       const smooth = grad < smoothThreshold;
-      const greySheen = s < 0.22 && v > 0.12 && v < 0.92;
-      const skyReflection = h >= 168 && h <= 255 && s >= 0.08 && s <= 0.62;
-      const muddyWater = h >= 15 && h <= 62 && s < 0.45 && v < 0.66;
-      const isWater = smooth && (greySheen || skyReflection || muddyWater);
+      // A grey sheen only counts as water when it stands out from the local
+      // surface: a bright specular reflection, or a distinctly darker pool.
+      const brighterSheen = s < 0.22 && v < 0.97 && l > roiLuma + 0.055;
+      const darkerPool = s < 0.26 && l < roiLuma - 0.1 && v > 0.05;
+      const skyReflection = h >= 168 && h <= 255 && s >= 0.1 && s <= 0.62;
+      const muddyWater = h >= 15 && h <= 62 && s >= 0.12 && s < 0.45 && v < 0.66;
+      const isWater =
+        smooth && (brighterSheen || darkerPool || skyReflection || muddyWater);
 
       // Road surface: asphalt/concrete is low-saturation and mid/dark value.
       const isRoad = s < 0.28 && v > 0.06 && v < 0.85;
