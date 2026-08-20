@@ -2,7 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/aqua/AppShell";
+import { BenchmarkPanel } from "@/components/aqua/BenchmarkPanel";
 import { evalsQuery, frameMetricsQuery, incidentsQuery } from "@/lib/aqua/db";
+
 
 export const Route = createFileRoute("/evaluation")({
   head: () => ({
@@ -47,6 +49,12 @@ function EvaluationRoute() {
           <Tile label="Frames flagged waterlogged" value={String(flagged)} />
           <Tile label="Incidents opened" value={String(incidents.length)} />
         </div>
+
+        <BenchmarkPanel />
+
+        <h2 className="font-display text-sm font-semibold">Recorded runs in the model registry</h2>
+
+
 
         {Object.entries(byVersion).map(([version, rows]) => (
           <section key={version} className="panel p-4">

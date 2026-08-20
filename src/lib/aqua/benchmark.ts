@@ -15,8 +15,12 @@
  * No figure here is hard-coded: every number comes from running the detector.
  */
 
-import { analyseFrame, type FrameFeatures } from "@/lib/aqua/vision";
+import { analyseFrame, floodConfidence, type FrameFeatures } from "@/lib/aqua/vision";
 import { TEST_SET, type TestSample } from "@/lib/aqua/testset";
+
+export type VerifyFn = (payload: {
+  data: { image: string; contextLabel?: string; ruleCoverage?: number };
+}) => Promise<{ waterlogged: boolean; confidence: number; summary: string }>;
 
 export type SampleResult = {
   id: string;
@@ -30,9 +34,19 @@ export type SampleResult = {
   outcome: "TP" | "FP" | "FN" | "TN";
   /** Weak-label IoU vs the annotated water region (positives only). */
   iou: number | null;
+  /** Composite flood confidence used for the decision. */
+  confidence: number;
   /** Detector latency in ms (decode excluded). */
   inferenceMs: number;
   decodeMs: number;
+  /** Stage-2 AI verification, when the end-to-end pipeline was benchmarked. */
+  aiVerdict: "flood" | "clear" | "not-screened" | null;
+  aiConfidence: number | null;
+  aiSummary: string | null;
+  aiLatencyMs: number | null;
+  /** End-to-end prediction (stage 1 screening AND stage 2 confirmation). */
+  endToEnd: "flood" | "clear" | null;
+  endToEndOutcome: "TP" | "FP" | "FN" | "TN" | null;
 };
 
 export type BenchmarkMetrics = {
@@ -63,6 +77,9 @@ export type BenchmarkRun = {
   ranAt: string;
   metrics: BenchmarkMetrics;
   sweep: { threshold: number; precision: number; recall: number; f1: number; falseAlertRate: number }[];
+  /** Metrics for the full pipeline (rule screening + AI confirmation), if run. */
+  endToEnd: BenchmarkMetrics | null;
+  aiLatency: { mean: number; p95: number } | null;
   bestF1Threshold: number;
   samples: SampleResult[];
   userAgent: string;
@@ -118,6 +135,8 @@ export type BenchOptions = {
   roiTop?: number;
   onProgress?: (done: number, total: number, sample: TestSample) => void;
   samples?: TestSample[];
+  /** Supply useServerFn(verifyFrame) to also benchmark the AI confirmation stage. */
+  verify?: VerifyFn;
 };
 
 /** Analyse every test image once, then derive metrics for the chosen threshold. */
@@ -171,7 +190,7 @@ export async function runBenchmark(options: BenchOptions = {}): Promise<Benchmar
 
   const samples: SampleResult[] = raw.map((r) => {
     const predicted: "flood" | "clear" =
-      r.features.waterCoverage >= threshold ? "flood" : "clear";
+      floodConfidence(r.features) >= threshold ? "flood" : "clear";
     const outcome =
       r.sample.label === "flood"
         ? predicted === "flood"
@@ -188,6 +207,7 @@ export async function runBenchmark(options: BenchOptions = {}): Promise<Benchmar
       sourcePage: r.sample.sourcePage,
       url: r.sample.url,
       features: r.features,
+      confidence: floodConfidence(r.features),
       predicted,
       outcome: outcome as SampleResult["outcome"],
       iou: r.iou,
@@ -200,7 +220,7 @@ export async function runBenchmark(options: BenchOptions = {}): Promise<Benchmar
   const metrics = deriveMetrics(samples, threshold, roiTop, latencies, raw);
 
   const sweep: BenchmarkRun["sweep"] = [];
-  for (let t = 0.02; t <= 0.5001; t += 0.02) {
+  for (let t = 0.05; t <= 0.8501; t += 0.025) {
     const th = Number(t.toFixed(2));
     const m = metricsAt(raw, th);
     sweep.push({
@@ -233,9 +253,16 @@ function metricsAt(raw: Raw[], threshold: number) {
   let fn = 0;
   let tn = 0;
   for (const r of raw) {
-    const pred = r.features.waterCoverage >= threshold;
-    if (r.sample.label === "flood") pred ? tp++ : fn++;
-    else pred ? fp++ : tn++;
+    const pred = floodConfidence(r.features) >= threshold;
+    if (r.sample.label === "flood") {
+      if (pred) tp++;
+      else fn++;
+    } else if (pred) {
+      fp++;
+    } else {
+      tn++;
+    }
+
   }
   const precision = tp + fp === 0 ? 0 : tp / (tp + fp);
   const recall = tp + fn === 0 ? 0 : tp / (tp + fn);
