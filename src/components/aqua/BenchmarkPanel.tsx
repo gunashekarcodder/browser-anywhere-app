@@ -128,26 +128,54 @@ export function BenchmarkPanel() {
           </div>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          The benchmark runs the exact detector used by the live monitor over{" "}
-          {TEST_SET.length} held-out, openly licensed photographs (
+          The benchmark runs the exact detector used by the live monitor over {TEST_SET.length}{" "}
+          held-out, openly licensed photographs (
           {TEST_SET.filter((s) => s.label === "flood").length} waterlogged,{" "}
-          {TEST_SET.filter((s) => s.label === "clear").length} hard negatives: dry roads,
-          rain-wet asphalt, night reflections). Every number below is measured in this
-          browser at run time — nothing is hard-coded.
+          {TEST_SET.filter((s) => s.label === "clear").length} hard negatives: dry roads, rain-wet
+          asphalt, night reflections). Every number below is measured in this browser at run time —
+          nothing is hard-coded.
         </p>
       </section>
 
       {m && run ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="Precision" value={pct(m.precision)} hint={`${m.tp} TP / ${m.tp + m.fp} alerts`} />
-            <Metric label="Recall (sensitivity)" value={pct(m.recall)} hint={`${m.tp}/${m.positives} floods caught`} />
-            <Metric label="F1 score" value={m.f1.toFixed(3)} hint={`best F1 at threshold ${run.bestF1Threshold.toFixed(2)}`} />
-            <Metric label="IoU (weak box)" value={m.meanIoU.toFixed(3)} hint="mask vs annotated water region" />
-            <Metric label="False-alert rate" value={pct(m.falseAlertRate)} hint={`${m.fp}/${m.negatives} negatives flagged`} />
+            <Metric
+              label="Precision"
+              value={pct(m.precision)}
+              hint={`${m.tp} TP / ${m.tp + m.fp} alerts`}
+            />
+            <Metric
+              label="Recall (sensitivity)"
+              value={pct(m.recall)}
+              hint={`${m.tp}/${m.positives} floods caught`}
+            />
+            <Metric
+              label="F1 score"
+              value={m.f1.toFixed(3)}
+              hint={`best F1 at threshold ${run.bestF1Threshold.toFixed(2)}`}
+            />
+            <Metric
+              label="IoU (weak box)"
+              value={m.meanIoU.toFixed(3)}
+              hint="mask vs annotated water region"
+            />
+            <Metric
+              label="False-alert rate"
+              value={pct(m.falseAlertRate)}
+              hint={`${m.fp}/${m.negatives} negatives flagged`}
+            />
             <Metric label="Miss rate" value={pct(m.missRate)} hint={`${m.fn} floods missed`} />
-            <Metric label="Inference latency" value={ms(m.latency.mean)} hint={`p50 ${ms(m.latency.p50)} · p95 ${ms(m.latency.p95)} · max ${ms(m.latency.max)}`} />
-            <Metric label="Throughput" value={`${m.latency.fps.toFixed(0)} fps`} hint={`decode ${ms(m.decodeMean)} excluded`} />
+            <Metric
+              label="Inference latency"
+              value={ms(m.latency.mean)}
+              hint={`p50 ${ms(m.latency.p50)} · p95 ${ms(m.latency.p95)} · max ${ms(m.latency.max)}`}
+            />
+            <Metric
+              label="Throughput"
+              value={`${m.latency.fps.toFixed(0)} fps`}
+              hint={`decode ${ms(m.decodeMean)} excluded`}
+            />
           </div>
 
           {run.endToEnd ? (
@@ -156,14 +184,26 @@ export function BenchmarkPanel() {
                 End-to-end pipeline — rule screening + AI frame confirmation
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Only frames the cheap detector screened in were sent to the vision model, so
-                these numbers include the screening stage&apos;s misses — this is what an
-                operator actually sees.
+                Only frames the cheap detector screened in were sent to the vision model, so these
+                numbers include the screening stage&apos;s misses — this is what an operator
+                actually sees.
               </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Metric label="E2E precision" value={pct(run.endToEnd.precision)} hint={`${run.endToEnd.tp} TP / ${run.endToEnd.tp + run.endToEnd.fp} alerts`} />
-                <Metric label="E2E recall" value={pct(run.endToEnd.recall)} hint={`${run.endToEnd.fn} missed`} />
-                <Metric label="E2E F1" value={run.endToEnd.f1.toFixed(3)} hint={`accuracy ${pct(run.endToEnd.accuracy)}`} />
+                <Metric
+                  label="E2E precision"
+                  value={pct(run.endToEnd.precision)}
+                  hint={`${run.endToEnd.tp} TP / ${run.endToEnd.tp + run.endToEnd.fp} alerts`}
+                />
+                <Metric
+                  label="E2E recall"
+                  value={pct(run.endToEnd.recall)}
+                  hint={`${run.endToEnd.fn} missed`}
+                />
+                <Metric
+                  label="E2E F1"
+                  value={run.endToEnd.f1.toFixed(3)}
+                  hint={`accuracy ${pct(run.endToEnd.accuracy)}`}
+                />
                 <Metric
                   label="E2E false-alert rate"
                   value={pct(run.endToEnd.falseAlertRate)}
@@ -219,8 +259,8 @@ export function BenchmarkPanel() {
               Per-frame results and test data used
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Ground-truth label, prediction, measured coverage, weak-box IoU, latency and the
-              exact source photograph with its licence.
+              Ground-truth label, prediction, measured coverage, weak-box IoU, latency and the exact
+              source photograph with its licence.
             </p>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-3xl text-sm">
@@ -251,8 +291,8 @@ export function BenchmarkPanel() {
         </>
       ) : (
         <section className="panel p-4 text-sm text-muted-foreground">
-          Run the benchmark to measure precision, recall, F1, IoU, false-alert rate and
-          inference latency against the held-out test set.
+          Run the benchmark to measure precision, recall, F1, IoU, false-alert rate and inference
+          latency against the held-out test set.
         </section>
       )}
     </div>
@@ -261,9 +301,7 @@ export function BenchmarkPanel() {
 
 function SampleRow({ s }: { s: SampleResult }) {
   const tone =
-    s.outcome === "TP" || s.outcome === "TN"
-      ? "text-[hsl(140_70%_55%)]"
-      : "text-[hsl(0_75%_65%)]";
+    s.outcome === "TP" || s.outcome === "TN" ? "text-[hsl(140_70%_55%)]" : "text-[hsl(0_75%_65%)]";
   return (
     <tr className="border-b border-border/60 align-middle last:border-0">
       <td className="py-2 pr-3">

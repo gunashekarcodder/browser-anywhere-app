@@ -76,7 +76,13 @@ export type BenchmarkRun = {
   datasetVersion: string;
   ranAt: string;
   metrics: BenchmarkMetrics;
-  sweep: { threshold: number; precision: number; recall: number; f1: number; falseAlertRate: number }[];
+  sweep: {
+    threshold: number;
+    precision: number;
+    recall: number;
+    f1: number;
+    falseAlertRate: number;
+  }[];
   /** Metrics for the full pipeline (rule screening + AI confirmation), if run. */
   endToEnd: BenchmarkMetrics | null;
   aiLatency: { mean: number; p95: number } | null;
@@ -178,9 +184,7 @@ export async function runBenchmark(options: BenchOptions = {}): Promise<Benchmar
     );
     const inferenceMs = performance.now() - t0;
 
-    const iou = sample.waterBox
-      ? maskIoU(mask, maskCols, maskRows, roiTop, sample.waterBox)
-      : null;
+    const iou = sample.waterBox ? maskIoU(mask, maskCols, maskRows, roiTop, sample.waterBox) : null;
 
     let snapshot = "";
     if (options.verify) {
@@ -394,7 +398,6 @@ function metricsAt(raw: Raw[], threshold: number) {
     } else {
       tn++;
     }
-
   }
   const precision = tp + fp === 0 ? 0 : tp / (tp + fp);
   const recall = tp + fn === 0 ? 0 : tp / (tp + fn);
