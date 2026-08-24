@@ -155,6 +155,7 @@ export async function runBenchmark(options: BenchOptions = {}): Promise<Benchmar
     iou: number | null;
     inferenceMs: number;
     decodeMs: number;
+    snapshot: string;
   }[] = [];
 
   let done = 0;
@@ -181,7 +182,15 @@ export async function runBenchmark(options: BenchOptions = {}): Promise<Benchmar
       ? maskIoU(mask, maskCols, maskRows, roiTop, sample.waterBox)
       : null;
 
-    raw.push({ sample, features, iou, inferenceMs, decodeMs });
+    let snapshot = "";
+    if (options.verify) {
+      try {
+        snapshot = canvas.toDataURL("image/jpeg", 0.7);
+      } catch {
+        snapshot = "";
+      }
+    }
+    raw.push({ sample, features, iou, inferenceMs, decodeMs, snapshot });
     done += 1;
     options.onProgress?.(done, set.length, sample);
     // Yield so the UI can paint progress.
@@ -213,8 +222,60 @@ export async function runBenchmark(options: BenchOptions = {}): Promise<Benchmar
       iou: r.iou,
       inferenceMs: r.inferenceMs,
       decodeMs: r.decodeMs,
+      aiVerdict: null,
+      aiConfidence: null,
+      aiSummary: null,
+      aiLatencyMs: null,
+      endToEnd: null,
+      endToEndOutcome: null,
     };
   });
+
+  // Stage 2 — AI confirmation. Only frames the cheap detector screened in are
+  // sent to the model, exactly as the live pipeline behaves, so the measured
+  // end-to-end numbers include the screening stage's misses.
+  const aiLatencies: number[] = [];
+  if (options.verify) {
+    for (let idx = 0; idx < samples.length; idx++) {
+      const s = samples[idx]!;
+      const r = raw[idx]!;
+      if (s.predicted !== "flood" || !r.snapshot) {
+        s.aiVerdict = "not-screened";
+        s.endToEnd = "clear";
+      } else {
+        const t = performance.now();
+        try {
+          const verdict = await options.verify({
+            data: {
+              image: r.snapshot,
+              contextLabel: `benchmark frame ${s.id}`,
+              ruleCoverage: r.features.waterCoverage,
+            },
+          });
+          const ms = performance.now() - t;
+          aiLatencies.push(ms);
+          s.aiLatencyMs = ms;
+          s.aiVerdict = verdict.waterlogged ? "flood" : "clear";
+          s.aiConfidence = verdict.confidence;
+          s.aiSummary = verdict.summary;
+          s.endToEnd = verdict.waterlogged ? "flood" : "clear";
+        } catch (error) {
+          s.aiSummary = error instanceof Error ? error.message : "verification failed";
+          s.aiVerdict = null;
+          s.endToEnd = s.predicted;
+        }
+      }
+      s.endToEndOutcome =
+        s.label === "flood"
+          ? s.endToEnd === "flood"
+            ? "TP"
+            : "FN"
+          : s.endToEnd === "flood"
+            ? "FP"
+            : "TN";
+      options.onProgress?.(idx + 1, samples.length, raw[idx]!.sample);
+    }
+  }
 
   const latencies = raw.map((r) => r.inferenceMs).sort((a, b) => a - b);
   const metrics = deriveMetrics(samples, threshold, roiTop, latencies, raw);
@@ -233,7 +294,20 @@ export async function runBenchmark(options: BenchOptions = {}): Promise<Benchmar
   }
   const best = sweep.reduce((a, b) => (b.f1 > a.f1 ? b : a), sweep[0]!);
 
+  const endToEnd = options.verify
+    ? endToEndMetrics(samples, threshold, roiTop, latencies, raw)
+    : null;
+  const aiLatencySorted = [...aiLatencies].sort((a, b) => a - b);
+
   return {
+    endToEnd,
+    aiLatency:
+      aiLatencySorted.length === 0
+        ? null
+        : {
+            mean: aiLatencySorted.reduce((a, b) => a + b, 0) / aiLatencySorted.length,
+            p95: percentile(aiLatencySorted, 95),
+          },
     modelVersion: BENCH_MODEL_VERSION,
     datasetVersion: `aqua-bench-v1 (${set.length} images)`,
     ranAt: new Date().toISOString(),
@@ -245,7 +319,65 @@ export async function runBenchmark(options: BenchOptions = {}): Promise<Benchmar
   };
 }
 
-type Raw = { sample: TestSample; features: FrameFeatures; iou: number | null; inferenceMs: number; decodeMs: number };
+function endToEndMetrics(
+  samples: SampleResult[],
+  threshold: number,
+  roiTop: number,
+  latencies: number[],
+  raw: { decodeMs: number }[],
+): BenchmarkMetrics {
+  let tp = 0;
+  let fp = 0;
+  let fn = 0;
+  let tn = 0;
+  for (const s of samples) {
+    if (s.endToEndOutcome === "TP") tp++;
+    else if (s.endToEndOutcome === "FP") fp++;
+    else if (s.endToEndOutcome === "FN") fn++;
+    else if (s.endToEndOutcome === "TN") tn++;
+  }
+  const precision = tp + fp === 0 ? 0 : tp / (tp + fp);
+  const recall = tp + fn === 0 ? 0 : tp / (tp + fn);
+  const f1 = precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall);
+  const negatives = fp + tn;
+  const ious = samples.map((s) => s.iou).filter((v): v is number => v !== null);
+  const mean = latencies.reduce((a, b) => a + b, 0) / Math.max(1, latencies.length);
+  return {
+    threshold,
+    roiTop,
+    total: samples.length,
+    positives: samples.filter((s) => s.label === "flood").length,
+    negatives: samples.filter((s) => s.label === "clear").length,
+    tp,
+    fp,
+    fn,
+    tn,
+    precision,
+    recall,
+    f1,
+    accuracy: (tp + tn) / Math.max(1, samples.length),
+    specificity: negatives === 0 ? 0 : tn / negatives,
+    falseAlertRate: negatives === 0 ? 0 : fp / negatives,
+    missRate: tp + fn === 0 ? 0 : fn / (tp + fn),
+    meanIoU: ious.length === 0 ? 0 : ious.reduce((a, b) => a + b, 0) / ious.length,
+    latency: {
+      mean,
+      p50: percentile(latencies, 50),
+      p95: percentile(latencies, 95),
+      max: latencies[latencies.length - 1] ?? 0,
+      fps: mean > 0 ? 1000 / mean : 0,
+    },
+    decodeMean: raw.reduce((a, b) => a + b.decodeMs, 0) / Math.max(1, raw.length),
+  };
+}
+
+type Raw = {
+  sample: TestSample;
+  features: FrameFeatures;
+  iou: number | null;
+  inferenceMs: number;
+  decodeMs: number;
+};
 
 function metricsAt(raw: Raw[], threshold: number) {
   let tp = 0;
