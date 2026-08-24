@@ -150,8 +150,7 @@ export function analyseFrame(
       const darkerPool = s < 0.26 && l < roiLuma - 0.1 && v > 0.05;
       const skyReflection = h >= 168 && h <= 255 && s >= 0.1 && s <= 0.62;
       const muddyWater = h >= 15 && h <= 62 && s >= 0.12 && s < 0.45 && v < 0.66;
-      const isWater =
-        smooth && (brighterSheen || darkerPool || skyReflection || muddyWater);
+      const isWater = smooth && (brighterSheen || darkerPool || skyReflection || muddyWater);
 
       // Road surface: asphalt/concrete is low-saturation and mid/dark value.
       const isRoad = s < 0.28 && v > 0.06 && v < 0.85;
@@ -184,12 +183,7 @@ export function analyseFrame(
     waterLumaStd:
       waterPixels === 0
         ? 0
-        : Math.sqrt(
-            Math.max(
-              0,
-              waterLumaSqSum / waterPixels - (waterLumaSum / waterPixels) ** 2,
-            ),
-          ),
+        : Math.sqrt(Math.max(0, waterLumaSqSum / waterPixels - (waterLumaSum / waterPixels) ** 2)),
     waterSaturation: waterPixels === 0 ? 0 : waterSatSum / waterPixels,
     roiWidth: width,
     roiHeight: height - yStart,
