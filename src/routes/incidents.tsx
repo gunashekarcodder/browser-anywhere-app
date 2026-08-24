@@ -141,8 +141,8 @@ function IncidentsRoute() {
         .eq("id", incidentId);
     }
     toast.success("Action recorded");
-    void qc.invalidateQueries({ queryKey: ["operator_actions"] });
-    void qc.invalidateQueries({ queryKey: ["incidents"] });
+    refresh();
+    return true;
   };
 
   return (
