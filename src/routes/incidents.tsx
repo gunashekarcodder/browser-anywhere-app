@@ -128,7 +128,7 @@ function IncidentsRoute() {
     });
     if (error) {
       toast.error(error.message);
-      return;
+      return false;
     }
     if (actionType === "resolved") {
       await supabase
