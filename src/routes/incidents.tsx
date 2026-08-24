@@ -119,7 +119,7 @@ function IncidentsRoute() {
   };
 
   const logAction = async (incidentId: string, actionType: string, text?: string) => {
-    if (!(await ensureOperator("log a response action"))) return;
+    if (!(await ensureOperator("log a response action"))) return false;
     const { error } = await supabase.from("operator_actions").insert({
       incident_id: incidentId,
       action_type: actionType,
