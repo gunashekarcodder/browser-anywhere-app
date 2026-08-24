@@ -125,9 +125,27 @@ export const incidentsQuery = queryOptions({
   queryKey: ["incidents"],
   queryFn: async () =>
     unwrap<Incident[]>(
-      await supabase.from("incidents").select("*").order("last_seen", { ascending: false }),
+      await supabase
+        .from("incidents")
+        .select("*")
+        .is("deleted_at", null)
+        .order("last_seen", { ascending: false }),
     ) as Incident[],
   refetchInterval: 5000,
+});
+
+/** Incidents moved to the recycling bin — restorable or permanently deletable. */
+export const binnedIncidentsQuery = queryOptions({
+  queryKey: ["incidents", "binned"],
+  queryFn: async () =>
+    unwrap<Incident[]>(
+      await supabase
+        .from("incidents")
+        .select("*")
+        .not("deleted_at", "is", null)
+        .order("deleted_at", { ascending: false }),
+    ) as Incident[],
+  refetchInterval: 10000,
 });
 
 export const evidenceQuery = queryOptions({
