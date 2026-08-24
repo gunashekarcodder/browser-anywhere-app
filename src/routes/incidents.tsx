@@ -17,10 +17,12 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { ensureOperator } from "@/lib/aqua/auth";
+import { exportIncidentClip, exportIncidentReport } from "@/lib/aqua/clip";
 import {
   actionsQuery,
   camerasQuery,
   evidenceQuery,
+  type Incident,
   incidentsQuery,
   zonesQuery,
 } from "@/lib/aqua/db";
@@ -58,6 +60,7 @@ function IncidentsRoute() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [bandFilter, setBandFilter] = useState("all");
   const [note, setNote] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
 
   const zoneName = (id: string | null) => zones.find((z) => z.id === id)?.name ?? "Unassigned zone";
   const cameraName = (id: string | null) => cameras.find((c) => c.id === id)?.name ?? "Manual entry";
@@ -68,8 +71,55 @@ function IncidentsRoute() {
       (bandFilter === "all" || i.severity_band === bandFilter),
   );
 
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: ["incidents"] });
+    void qc.invalidateQueries({ queryKey: ["operator_actions"] });
+  };
+
+  /** Downloads the footage + report, then moves the incident to the recycling bin. */
+  const archiveAndRemove = async (incident: Incident) => {
+    if (!(await ensureOperator("archive an incident"))) return;
+    const label = `${zoneName(incident.zone_id)}-${new Date(incident.first_seen).toISOString().slice(0, 16)}`;
+    const shots = evidence.filter((e) => e.incident_id === incident.id);
+    setBusy(incident.id);
+    try {
+      exportIncidentReport(incident, label, shots, actions.filter((a) => a.incident_id === incident.id));
+      const hadClip = await exportIncidentClip(shots, label);
+      const stamp = new Date().toISOString();
+      const { error } = await supabase
+        .from("incidents")
+        .update({ archived_at: stamp, deleted_at: stamp })
+        .eq("id", incident.id);
+      if (error) throw new Error(error.message);
+      toast.success(
+        hadClip
+          ? "Footage and report downloaded — incident moved to the recycling bin"
+          : "Report downloaded (no footage stored) — incident moved to the recycling bin",
+      );
+      refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not archive the incident");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const moveToBin = async (incident: Incident) => {
+    if (!(await ensureOperator("delete an incident"))) return;
+    const { error } = await supabase
+      .from("incidents")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", incident.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Moved to recycling bin");
+    refresh();
+  };
+
   const logAction = async (incidentId: string, actionType: string, text?: string) => {
-    if (!(await ensureOperator("log a response action"))) return;
+    if (!(await ensureOperator("log a response action"))) return false;
     const { error } = await supabase.from("operator_actions").insert({
       incident_id: incidentId,
       action_type: actionType,
@@ -78,7 +128,7 @@ function IncidentsRoute() {
     });
     if (error) {
       toast.error(error.message);
-      return;
+      return false;
     }
     if (actionType === "resolved") {
       await supabase
@@ -91,8 +141,8 @@ function IncidentsRoute() {
         .eq("id", incidentId);
     }
     toast.success("Action recorded");
-    void qc.invalidateQueries({ queryKey: ["operator_actions"] });
-    void qc.invalidateQueries({ queryKey: ["incidents"] });
+    refresh();
+    return true;
   };
 
   return (
@@ -182,11 +232,33 @@ function IncidentsRoute() {
                     {incident.status !== "resolved" && (
                       <Button
                         size="sm"
-                        onClick={() => void logAction(incident.id, "resolved", note[incident.id])}
+                        disabled={busy === incident.id}
+                        onClick={async () => {
+                          const ok = await logAction(incident.id, "resolved", note[incident.id]);
+                          if (ok) {
+                            await archiveAndRemove({
+                              ...incident,
+                              status: "resolved",
+                              resolved_at: new Date().toISOString(),
+                              resolution_note: note[incident.id] ?? "Cleared by field crew",
+                            });
+                          }
+                        }}
                       >
-                        Mark resolved
+                        {busy === incident.id ? "Archiving…" : "Resolve, download & clear"}
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy === incident.id}
+                      onClick={() => void archiveAndRemove(incident)}
+                    >
+                      Download archive
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => void moveToBin(incident)}>
+                      Delete
+                    </Button>
                   </div>
                 </div>
 
