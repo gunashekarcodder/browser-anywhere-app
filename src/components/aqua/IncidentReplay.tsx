@@ -52,50 +52,7 @@ export function IncidentReplay({
     if (ordered.length === 0) return;
     setExporting(true);
     try {
-      const images = await Promise.all(
-        ordered.map(
-          (f) =>
-            new Promise<HTMLImageElement>((resolve, reject) => {
-              const img = new Image();
-              img.crossOrigin = "anonymous";
-              img.onload = () => resolve(img);
-              img.onerror = () => reject(new Error("frame failed to load"));
-              img.src = f.image_url ?? "";
-            }),
-        ),
-      );
-      const first = images[0]!;
-      const canvas = canvasRef.current ?? document.createElement("canvas");
-      canvas.width = first.naturalWidth || 480;
-      canvas.height = first.naturalHeight || 270;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("canvas unavailable");
-
-      const stream = canvas.captureStream(fps);
-      const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-        ? "video/webm;codecs=vp9"
-        : "video/webm";
-      const recorder = new MediaRecorder(stream, { mimeType: mime });
-      const chunks: BlobPart[] = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-      const done = new Promise<Blob>((resolve) => {
-        recorder.onstop = () => resolve(new Blob(chunks, { type: "video/webm" }));
-      });
-      recorder.start();
-      for (const img of images) {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        await new Promise((r) => setTimeout(r, 1000 / fps));
-      }
-      recorder.stop();
-      const blob = await done;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `aquasentinel-${label.replace(/\s+/g, "-").toLowerCase()}-replay.webm`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await exportIncidentClip(ordered, label, fps);
       toast.success("Replay clip downloaded");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not export the clip");
