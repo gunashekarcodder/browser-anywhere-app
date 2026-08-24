@@ -232,11 +232,33 @@ function IncidentsRoute() {
                     {incident.status !== "resolved" && (
                       <Button
                         size="sm"
-                        onClick={() => void logAction(incident.id, "resolved", note[incident.id])}
+                        disabled={busy === incident.id}
+                        onClick={async () => {
+                          const ok = await logAction(incident.id, "resolved", note[incident.id]);
+                          if (ok) {
+                            await archiveAndRemove({
+                              ...incident,
+                              status: "resolved",
+                              resolved_at: new Date().toISOString(),
+                              resolution_note: note[incident.id] ?? "Cleared by field crew",
+                            });
+                          }
+                        }}
                       >
-                        Mark resolved
+                        {busy === incident.id ? "Archiving…" : "Resolve, download & clear"}
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy === incident.id}
+                      onClick={() => void archiveAndRemove(incident)}
+                    >
+                      Download archive
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => void moveToBin(incident)}>
+                      Delete
+                    </Button>
                   </div>
                 </div>
 
