@@ -43,6 +43,8 @@ export type Incident = {
   last_seen: string;
   resolved_at: string | null;
   resolution_note: string | null;
+  deleted_at: string | null;
+  archived_at: string | null;
 };
 
 export type Evidence = {
