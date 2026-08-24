@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { exportIncidentClip } from "@/lib/aqua/clip";
 import type { Evidence } from "@/lib/aqua/db";
 
 const SPEEDS = [2, 4, 8] as const;
