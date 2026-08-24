@@ -17,10 +17,12 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { ensureOperator } from "@/lib/aqua/auth";
+import { exportIncidentClip, exportIncidentReport } from "@/lib/aqua/clip";
 import {
   actionsQuery,
   camerasQuery,
   evidenceQuery,
+  type Incident,
   incidentsQuery,
   zonesQuery,
 } from "@/lib/aqua/db";
