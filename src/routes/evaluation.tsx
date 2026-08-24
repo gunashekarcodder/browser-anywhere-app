@@ -92,12 +92,17 @@ function EvaluationRoute() {
           </h2>
           <ul className="mt-2 list-disc space-y-1.5 pl-5">
             <li>
-              The in-browser detector is a deterministic HSV + texture-gradient estimator with a
-              temporal persistence gate — not a trained segmentation network.
+              Stage 1, the in-browser detector, is a deterministic HSV + texture-gradient
+              estimator with a temporal persistence gate — not a trained segmentation network.
+              It is tuned for recall and used as a cheap screening filter: on hard negatives
+              (rain-wet asphalt, night reflections, bright dry concrete) it over-flags, which
+              the measured stage-1 false-alert rate above reports openly.
             </li>
             <li>
-              People, vehicle and depth figures come from the AI frame verification stage, so they
-              exist only for frames that were verified.
+              Stage 2 is the AI frame verification: only screened-in frames are sent to the
+              vision model, and its verdict decides the alert. The end-to-end precision,
+              recall, F1 and false-alert rate shown above are the numbers an operator actually
+              experiences. People, vehicle and depth figures come from this stage only.
             </li>
             <li>
               Severity is a documented weighted formula; every contribution is shown in the live
