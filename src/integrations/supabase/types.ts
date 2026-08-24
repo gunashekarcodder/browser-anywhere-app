@@ -202,8 +202,10 @@ export type Database = {
         Row: {
           ai_summary: string | null
           ai_verified: boolean
+          archived_at: string | null
           camera_id: string | null
           created_at: string
+          deleted_at: string | null
           first_seen: string
           id: string
           last_seen: string
@@ -223,8 +225,10 @@ export type Database = {
         Insert: {
           ai_summary?: string | null
           ai_verified?: boolean
+          archived_at?: string | null
           camera_id?: string | null
           created_at?: string
+          deleted_at?: string | null
           first_seen?: string
           id?: string
           last_seen?: string
@@ -244,8 +248,10 @@ export type Database = {
         Update: {
           ai_summary?: string | null
           ai_verified?: boolean
+          archived_at?: string | null
           camera_id?: string | null
           created_at?: string
+          deleted_at?: string | null
           first_seen?: string
           id?: string
           last_seen?: string
