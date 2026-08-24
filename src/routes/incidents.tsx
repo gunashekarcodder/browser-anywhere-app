@@ -60,6 +60,7 @@ function IncidentsRoute() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [bandFilter, setBandFilter] = useState("all");
   const [note, setNote] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
 
   const zoneName = (id: string | null) => zones.find((z) => z.id === id)?.name ?? "Unassigned zone";
   const cameraName = (id: string | null) => cameras.find((c) => c.id === id)?.name ?? "Manual entry";
