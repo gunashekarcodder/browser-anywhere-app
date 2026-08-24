@@ -475,5 +475,31 @@ export function runToEvalRows(run: BenchmarkRun) {
     sample_count: m.total,
     notes: note,
   }));
+  if (run.endToEnd) {
+    const e = run.endToEnd;
+    const eNote = `end-to-end: rule screening (conf >= ${e.threshold.toFixed(2)}) + AI frame confirmation, ${run.ranAt}`;
+    for (const [name, value] of [
+      ["e2e_precision", e.precision],
+      ["e2e_recall", e.recall],
+      ["e2e_f1", e.f1],
+      ["e2e_false_alert_rate", e.falseAlertRate],
+      ["e2e_accuracy", e.accuracy],
+      ...(run.aiLatency
+        ? ([
+            ["ai_verify_ms_mean", run.aiLatency.mean],
+            ["ai_verify_ms_p95", run.aiLatency.p95],
+          ] as [string, number][])
+        : []),
+    ] as [string, number][]) {
+      rows.push({
+        model_version: `${run.modelVersion}+ai-verify`,
+        split: "held-out-test",
+        metric_name: name,
+        metric_value: Number(value.toFixed(4)),
+        sample_count: e.total,
+        notes: eNote,
+      });
+    }
+  }
   return rows;
 }
