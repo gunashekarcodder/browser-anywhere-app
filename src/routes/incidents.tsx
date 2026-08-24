@@ -68,6 +68,53 @@ function IncidentsRoute() {
       (bandFilter === "all" || i.severity_band === bandFilter),
   );
 
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: ["incidents"] });
+    void qc.invalidateQueries({ queryKey: ["operator_actions"] });
+  };
+
+  /** Downloads the footage + report, then moves the incident to the recycling bin. */
+  const archiveAndRemove = async (incident: Incident) => {
+    if (!(await ensureOperator("archive an incident"))) return;
+    const label = `${zoneName(incident.zone_id)}-${new Date(incident.first_seen).toISOString().slice(0, 16)}`;
+    const shots = evidence.filter((e) => e.incident_id === incident.id);
+    setBusy(incident.id);
+    try {
+      exportIncidentReport(incident, label, shots, actions.filter((a) => a.incident_id === incident.id));
+      const hadClip = await exportIncidentClip(shots, label);
+      const stamp = new Date().toISOString();
+      const { error } = await supabase
+        .from("incidents")
+        .update({ archived_at: stamp, deleted_at: stamp })
+        .eq("id", incident.id);
+      if (error) throw new Error(error.message);
+      toast.success(
+        hadClip
+          ? "Footage and report downloaded — incident moved to the recycling bin"
+          : "Report downloaded (no footage stored) — incident moved to the recycling bin",
+      );
+      refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not archive the incident");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const moveToBin = async (incident: Incident) => {
+    if (!(await ensureOperator("delete an incident"))) return;
+    const { error } = await supabase
+      .from("incidents")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", incident.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Moved to recycling bin");
+    refresh();
+  };
+
   const logAction = async (incidentId: string, actionType: string, text?: string) => {
     if (!(await ensureOperator("log a response action"))) return;
     const { error } = await supabase.from("operator_actions").insert({
