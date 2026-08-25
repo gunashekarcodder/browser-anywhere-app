@@ -11,6 +11,7 @@ import {
   LogIn,
   LogOut,
   Radar,
+  Trash2,
   X,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
