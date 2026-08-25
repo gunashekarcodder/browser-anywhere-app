@@ -17,6 +17,7 @@ import { Route as EvaluationRouteImport } from './routes/evaluation'
 import { Route as IncidentsRouteImport } from './routes/incidents'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as MonitorRouteImport } from './routes/monitor'
+import { Route as RecycleBinRouteImport } from './routes/recycle-bin'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const MonitorRoute = MonitorRouteImport.update({
   path: '/monitor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecycleBinRoute = RecycleBinRouteImport.update({
+  id: '/recycle-bin',
+  path: '/recycle-bin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/incidents': typeof IncidentsRoute
   '/map': typeof MapRoute
   '/monitor': typeof MonitorRoute
+  '/recycle-bin': typeof RecycleBinRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/incidents': typeof IncidentsRoute
   '/map': typeof MapRoute
   '/monitor': typeof MonitorRoute
+  '/recycle-bin': typeof RecycleBinRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/incidents': typeof IncidentsRoute
   '/map': typeof MapRoute
   '/monitor': typeof MonitorRoute
+  '/recycle-bin': typeof RecycleBinRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/incidents'
     | '/map'
     | '/monitor'
+    | '/recycle-bin'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/incidents'
     | '/map'
     | '/monitor'
+    | '/recycle-bin'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/incidents'
     | '/map'
     | '/monitor'
+    | '/recycle-bin'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   IncidentsRoute: typeof IncidentsRoute
   MapRoute: typeof MapRoute
   MonitorRoute: typeof MonitorRoute
+  RecycleBinRoute: typeof RecycleBinRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MonitorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recycle-bin': {
+      id: '/recycle-bin'
+      path: '/recycle-bin'
+      fullPath: '/recycle-bin'
+      preLoaderRoute: typeof RecycleBinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   IncidentsRoute: IncidentsRoute,
   MapRoute: MapRoute,
   MonitorRoute: MonitorRoute,
+  RecycleBinRoute: RecycleBinRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

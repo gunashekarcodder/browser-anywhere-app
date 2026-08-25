@@ -27,6 +27,7 @@ const NAV = [
   { to: "/cameras", label: "Cameras", icon: Cctv },
   { to: "/datasets", label: "Datasets", icon: Database },
   { to: "/evaluation", label: "Evaluation", icon: FlaskConical },
+  { to: "/recycle-bin", label: "Recycling bin", icon: Trash2 },
 ] as const;
 
 export function AppShell({
