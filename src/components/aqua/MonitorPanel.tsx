@@ -38,7 +38,9 @@ import {
   attachHlsFeed,
   bustCache,
   detectFeedProtocol,
+  getFeedAccessWarning,
   PROTOCOL_LABEL,
+  resolveFeedUrl,
 } from "@/lib/aqua/feeds";
 import { BAND_ADVICE, scoreSeverity, type SeverityResult } from "@/lib/aqua/severity";
 import {
@@ -126,7 +128,9 @@ export function MonitorPanel({
     () => (sourceKind === "camera" ? detectFeedProtocol(camera?.source_url) : "unknown"),
     [camera?.source_url, sourceKind],
   );
-  const cameraFeedUrl = sourceKind === "camera" ? (camera?.source_url ?? "") : "";
+  const registeredFeedUrl = sourceKind === "camera" ? (camera?.source_url ?? "") : "";
+  const cameraFeedUrl = resolveFeedUrl(registeredFeedUrl);
+  const feedAccessWarning = getFeedAccessWarning(cameraFeedUrl);
   const isImage =
     sourceKind === "sample-image" || (sourceKind === "camera" && feedProtocol === "mjpeg");
 
@@ -415,11 +419,18 @@ export function MonitorPanel({
         toast.error("RTSP can't play in a browser — restream the camera as HLS (.m3u8).");
         return;
       }
+      if (feedAccessWarning) {
+        setFeedError(feedAccessWarning);
+        toast.error(feedAccessWarning);
+        return;
+      }
       if (feedProtocol !== "mjpeg" && videoRef.current) {
         try {
           await videoRef.current.play();
         } catch {
-          setFeedError("Feed blocked by autoplay or CORS policy.");
+          setFeedError(
+            "The feed did not return browser-playable video. For phone camera servers, enable the MJPEG /video endpoint and allow cross-origin access.",
+          );
         }
       }
       setRunning(true);
@@ -448,7 +459,7 @@ export function MonitorPanel({
       }
     }
     setRunning(true);
-  }, [autoLog, cameraFeedUrl, feedProtocol, isImage, sourceKind]);
+  }, [autoLog, cameraFeedUrl, feedAccessWarning, feedProtocol, isImage, sourceKind]);
 
   const stop = useCallback(() => {
     setRunning(false);
@@ -651,14 +662,21 @@ export function MonitorPanel({
                 {camera ? camera.name : "No camera selected"} · {PROTOCOL_LABEL[feedProtocol]}
               </p>
               <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
-                {cameraFeedUrl || "No feed URL registered for this camera."}
+                 {cameraFeedUrl || "No feed URL registered for this camera."}
               </p>
+               {registeredFeedUrl && registeredFeedUrl !== cameraFeedUrl && (
+                 <p className="mt-1 text-muted-foreground">
+                   Phone camera root detected; using its MJPEG <span className="font-mono">/video</span> endpoint automatically.
+                 </p>
+               )}
               {feedProtocol === "rtsp" && (
                 <p className="mt-1 text-muted-foreground">
                   Browsers can&apos;t decode RTSP. Restream it as HLS and update the camera URL.
                 </p>
               )}
-              {feedError && <p className="mt-1 text-critical">{feedError}</p>}
+               {(feedError || feedAccessWarning) && (
+                 <p className="mt-1 text-critical">{feedError || feedAccessWarning}</p>
+               )}
             </div>
           )}
 

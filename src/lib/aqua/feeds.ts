@@ -7,8 +7,35 @@
  */
 export type FeedProtocol = "hls" | "video" | "mjpeg" | "rtsp" | "unknown";
 
+/**
+ * Common phone-camera apps expose their MJPEG stream at /video while showing
+ * only the server root URL on screen. Resolve that root automatically.
+ */
+export function resolveFeedUrl(rawUrl: string | null | undefined) {
+  const value = (rawUrl ?? "").trim();
+  if (!value) return "";
+  try {
+    const parsed = new URL(value);
+    if ((parsed.protocol === "http:" || parsed.protocol === "https:") && parsed.pathname === "/") {
+      parsed.pathname = "/video";
+      return parsed.toString();
+    }
+  } catch {
+    return value;
+  }
+  return value;
+}
+
+export function getFeedAccessWarning(url: string) {
+  if (typeof window === "undefined" || !url) return null;
+  if (window.location.protocol === "https:" && url.startsWith("http://")) {
+    return "This HTTP phone feed is blocked on the secure HTTPS app. Open Live monitor on the phone and use Device camera, or expose the camera feed through HTTPS.";
+  }
+  return null;
+}
+
 export function detectFeedProtocol(rawUrl: string | null | undefined): FeedProtocol {
-  const url = (rawUrl ?? "").trim();
+  const url = resolveFeedUrl(rawUrl);
   if (!url) return "unknown";
   const lower = url.toLowerCase();
   if (lower.startsWith("rtsp://") || lower.startsWith("rtmp://")) return "rtsp";
