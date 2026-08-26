@@ -60,6 +60,18 @@ function CamerasRoute() {
 
 
 
+  const remove = async (id: string, name: string) => {
+    if (!window.confirm(`Remove camera "${name}" from the registry?`)) return;
+    if (!(await ensureOperator("remove a camera"))) return;
+    const { error } = await supabase.from("cameras").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Camera removed");
+    void qc.invalidateQueries({ queryKey: ["cameras"] });
+  };
+
   const add = async () => {
     if (!form.name.trim()) {
       toast.error("Give the camera a name.");
@@ -115,24 +127,33 @@ function CamerasRoute() {
                         {c.source_url}
                       </p>
                     )}
-                    {c.source_url && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() =>
-                            setPreview((p) => ({ ...p, [c.id]: !p[c.id] }))
-                          }
-                        >
-                          {preview[c.id] ? "Hide feed" : "Preview feed"}
-                        </Button>
-                        <Button size="sm" variant="outline" asChild>
-                          <Link to="/monitor" search={{ camera: c.id }}>
-                            Analyse in monitor
-                          </Link>
-                        </Button>
-                      </div>
-                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {c.source_url && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              setPreview((p) => ({ ...p, [c.id]: !p[c.id] }))
+                            }
+                          >
+                            {preview[c.id] ? "Hide feed" : "Preview feed"}
+                          </Button>
+                          <Button size="sm" variant="outline" asChild>
+                            <Link to="/monitor" search={{ camera: c.id }}>
+                              Analyse in monitor
+                            </Link>
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => void remove(c.id, c.name)}
+                      >
+                        Remove camera
+                      </Button>
+                    </div>
                   </div>
                   <div className="text-right text-xs text-muted-foreground">
                     <p className="font-mono text-base text-foreground">{frames.length}</p>
