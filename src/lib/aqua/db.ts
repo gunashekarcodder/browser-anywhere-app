@@ -132,6 +132,8 @@ export const incidentsQuery = queryOptions({
         .order("last_seen", { ascending: false }),
     ) as Incident[],
   refetchInterval: 5000,
+  refetchIntervalInBackground: true,
+  staleTime: 0,
 });
 
 /** Incidents moved to the recycling bin — restorable or permanently deletable. */
@@ -146,6 +148,8 @@ export const binnedIncidentsQuery = queryOptions({
         .order("deleted_at", { ascending: false }),
     ) as Incident[],
   refetchInterval: 10000,
+  refetchIntervalInBackground: true,
+  staleTime: 0,
 });
 
 export const evidenceQuery = queryOptions({
@@ -158,7 +162,9 @@ export const evidenceQuery = queryOptions({
         .order("captured_at", { ascending: false })
         .limit(600),
     ) as Evidence[],
-  refetchInterval: 8000,
+  refetchInterval: 4000,
+  refetchIntervalInBackground: true,
+  staleTime: 0,
 });
 
 export const frameMetricsQuery = queryOptions({
@@ -172,6 +178,8 @@ export const frameMetricsQuery = queryOptions({
         .limit(200),
     ) as FrameMetric[],
   refetchInterval: 5000,
+  refetchIntervalInBackground: true,
+  staleTime: 0,
 });
 
 export const actionsQuery = queryOptions({
@@ -185,6 +193,8 @@ export const actionsQuery = queryOptions({
         .limit(100),
     ) as OperatorAction[],
   refetchInterval: 8000,
+  refetchIntervalInBackground: true,
+  staleTime: 0,
 });
 
 export const datasetsQuery = queryOptions({
